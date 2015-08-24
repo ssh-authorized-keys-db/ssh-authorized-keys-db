@@ -1,0 +1,15 @@
+#!/bin/sh
+
+cd dynamodb-local
+java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb &
+pid=$!
+cd -
+file=dynamodb-local-2-stop
+cat <<EOF > "$file"
+if ps -fwwp $pid | grep -q DynamoDBLocal; then
+    kill $pid
+fi
+EOF
+chmod u+x "$file"
+
+
