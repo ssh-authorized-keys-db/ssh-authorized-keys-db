@@ -1,0 +1,139 @@
+## http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man8/sshd.8?query=sshd&arch=i386
+
+AUTHORIZED_KEYS FILE FORMAT
+
+AuthorizedKeysFile specifies the files containing public keys for
+public key authentication; if none is specified, the default is
+~/.ssh/authorized_keys and ~/.ssh/authorized_keys2. Each line of the
+file contains one key (empty lines and lines starting with a ‘#’ are
+ignored as comments). Protocol 1 public keys consist of the following
+space-separated fields: options, bits, exponent, modulus,
+comment. Protocol 2 public key consist of: options, keytype,
+base64-encoded key, comment. The options field is optional; its
+presence is determined by whether the line starts with a number or not
+(the options field never starts with a number). The bits, exponent,
+modulus, and comment fields give the RSA key for protocol version 1;
+the comment field is not used for anything (but may be convenient for
+the user to identify the key). For protocol version 2 the keytype is
+“ecdsa-sha2-nistp256”, “ecdsa-sha2-nistp384”, “ecdsa-sha2-nistp521”,
+“ssh-ed25519”, “ssh-dss” or “ssh-rsa”.
+
+Note that lines in this file are usually several hundred bytes long
+(because of the size of the public key encoding) up to a limit of 8
+kilobytes, which permits DSA keys up to 8 kilobits and RSA keys up to
+16 kilobits. You don't want to type them in; instead, copy the
+identity.pub, id_dsa.pub, id_ecdsa.pub, id_ed25519.pub, or the
+id_rsa.pub file and edit it.
+
+sshd enforces a minimum RSA key modulus size for protocol 1 and
+protocol 2 keys of 768 bits.
+
+The options (if present) consist of comma-separated option
+specifications. No spaces are permitted, except within double
+quotes. The following option specifications are supported (note that
+option keywords are case-insensitive):
+
+cert-authority
+    Specifies that the listed key is a certification authority (CA)
+    that is trusted to validate signed certificates for user
+    authentication.
+    Certificates may encode access restrictions similar to these key
+    options. If both certificate restrictions and key options are
+    present, the most restrictive union of the two is applied.
+
+command="command"
+    Specifies that the command is executed whenever this key is used
+    for authentication. The command supplied by the user (if any) is
+    ignored. The command is run on a pty if the client requests a pty;
+    otherwise it is run without a tty. If an 8-bit clean channel is
+    required, one must not request a pty or should specify no-pty. A
+    quote may be included in the command by quoting it with a
+    backslash. This option might be useful to restrict certain public
+    keys to perform just a specific operation. An example might be a
+    key that permits remote backups but nothing else. Note that the
+    client may specify TCP and/or X11 forwarding unless they are
+    explicitly prohibited. The command originally supplied by the
+    client is available in the SSH_ORIGINAL_COMMAND environment
+    variable. Note that this option applies to shell, command or
+    subsystem execution. Also note that this command may be superseded
+    by either a sshd_config(5) ForceCommand directive or a command
+    embedded in a certificate.
+
+environment="NAME=value"
+    Specifies that the string is to be added to the environment when
+    logging in using this key. Environment variables set this way
+    override other default environment values. Multiple options of
+    this type are permitted. Environment processing is disabled by
+    default and is controlled via the PermitUserEnvironment
+    option. This option is automatically disabled if UseLogin is
+    enabled.
+
+from="pattern-list"
+    Specifies that in addition to public key authentication, either
+    the canonical name of the remote host or its IP address must be
+    present in the comma-separated list of patterns. See PATTERNS in
+    ssh_config(5) for more information on patterns.
+
+    In addition to the wildcard matching that may be applied to
+    hostnames or addresses, a from stanza may match IP addresses using
+    CIDR address/masklen notation.
+
+    The purpose of this option is to optionally increase security:
+    public key authentication by itself does not trust the network or
+    name servers or anything (but the key); however, if somebody
+    somehow steals the key, the key permits an intruder to log in from
+    anywhere in the world. This additional option makes using a stolen
+    key more difficult (name servers and/or routers would have to be
+    compromised in addition to just the key).
+
+no-agent-forwarding
+    Forbids authentication agent forwarding when this key is used for
+    authentication.
+
+no-port-forwarding
+    Forbids TCP forwarding when this key is used for
+    authentication. Any port forward requests by the client will
+    return an error. This might be used, e.g. in connection with the
+    command option.
+
+no-pty
+    Prevents tty allocation (a request to allocate a pty will fail).
+
+no-user-rc
+    Disables execution of ~/.ssh/rc.
+
+no-X11-forwarding
+    Forbids X11 forwarding when this key is used for
+    authentication. Any X11 forward requests by the client will return
+    an error.
+
+permitopen="host:port"
+    Limit local port forwarding with ssh(1) -L such that it may only
+    connect to the specified host and port. IPv6 addresses can be
+    specified by enclosing the address in square brackets. Multiple
+    permitopen options may be applied separated by commas. No pattern
+    matching is performed on the specified hostnames, they must be
+    literal domains or addresses. A port specification of * matches
+    any port.
+
+principals="principals"
+    On a cert-authority line, specifies allowed principals for
+    certificate authentication as a comma-separated list. At least one
+    name from the list must appear in the certificate's list of
+    principals for the certificate to be accepted. This option is
+    ignored for keys that are not marked as trusted certificate
+    signers using the cert-authority option.
+
+tunnel="n"
+    Force a tun(4) device on the server. Without this option, the next
+    available device will be used if the client requests a tunnel.
+
+An example authorized_keys file:
+
+# Comments allowed at start of line 
+ssh-rsa AAAAB3Nza...LiPk== user@example.net 
+from="*.sales.example.net,!pc.sales.example.net" ssh-rsa AAAAB2...19Q== john@example.net 
+command="dump /home",no-pty,no-port-forwarding ssh-dss AAAAC3...51R== example.net 
+permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-dss AAAAB5...21S== 
+tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...== jane@example.net
+
