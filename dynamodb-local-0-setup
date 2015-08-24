@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+mkdir -p dynamodb-local
+cd dynamodb-local
+
+location=$(curl -sX HEAD -i http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz|perl -pe 's#\015$##g'|grep ^Location|awk '{print$NF}')
+basename=$(basename "$location")
+#echo "$location"
+echo "latest: $basename"
+
+if [ ! -f DynamoDBLocal.jar ]; then
+    echo "downloading $location"
+    (
+        mkdir -p .downloads
+        cd .downloads
+        curl -sLRO "$location"
+    )
+    echo "extracting $basename"
+    tar xf ".downloads/$basename"
+fi
