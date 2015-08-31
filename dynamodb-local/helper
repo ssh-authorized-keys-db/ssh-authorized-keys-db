@@ -1,0 +1,78 @@
+#!/bin/sh
+set -eu
+
+## check arguments
+if [ "$#" -ne 1 ]; then
+    echo >&2 "usage: $0 setup|start|stop"
+    exit 0
+fi
+
+## create working directory
+dir=dynamodb-local
+if [ ! -d "$dir" ]; then
+    mkdir "$dir"
+fi
+cd "$dir"
+
+setup() {
+    location=$(curl -sX HEAD -i http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz|perl -pe 's#\015$##g'|grep ^Location|awk '{print$NF}')
+    basename=$(basename "$location")
+    #echo "$location"
+    echo "latest: $basename"
+    
+    if [ ! -f DynamoDBLocal.jar ]; then
+        echo "downloading $location"
+        (
+            mkdir -p .downloads
+            cd .downloads
+            curl -sLRO "$location"
+        )
+        echo "extracting $basename"
+        tar xf ".downloads/$basename"
+    fi
+}
+
+start() {
+    o=$(pgrep -af DynamoDBLocal||true)
+    if [ -n "$o" ]; then
+        echo >&2 "ERROR: dynamodb local is already running"
+        echo >&2 "processes:"
+        echo "$o"|perl -pe 's#^#\t#' >&2
+        exit 1
+    fi
+    java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb &
+    pid=$!
+    echo "$pid" > DynamoDBLocal.pid
+    sleep 1
+    echo "DynamoDBLocal processes:"
+    pgrep -af DynamoDBLocal
+}
+
+stop() {
+    o=$(pgrep -af DynamoDBLocal||true)
+    if [ -n "$o" ]; then
+        p1=$(echo "$o"|awk '{print$1}')
+        p2=$(cat DynamoDBLocal.pid)
+        if [ "$p1" = "$p2" ]; then
+            echo "stopping process:"
+            printf "\t%s\n" "$o"
+            pkill -F DynamoDBLocal.pid
+            rm DynamoDBLocal.pid
+        else
+            echo >&2 "ERROR: pid file [DynamoDBLocal.pid] does NOT match running processes"
+            printf >&2 "pidfile:\n\t%s\n" "$p2"
+            echo >&2 "processes:"
+            echo "$o"|perl -pe 's#^#\t#' >&2
+            exit 1
+        fi
+    fi
+}
+
+case "$1" in
+    setup) setup ;;
+    start) start ;;
+     stop)  stop ;;
+        *) echo >&2 "ERROR: unknown command [$1] specified" ;;
+esac
+
+

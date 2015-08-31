@@ -1,2 +1,4 @@
-dynamodb-local
-dynamodb-local-2-stop
+dynamodb-local/*
+!dynamodb-local/helper
+
+
